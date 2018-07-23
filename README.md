@@ -1013,7 +1013,7 @@ export function queueWatcher(watcher: Watcher) {
 next-tick.d.ts
 ```js
 // 自己给 next-tick 写了下接口
-export declare function nextTick(cb: () => void, ctx?: any): Promise<any>;
+export declare function nextTick(cb: () => void, ctx?: any): Promise<any> | void;
 ```
 
 next-tick.js (注意这是 JS)
