@@ -23,6 +23,8 @@ JS 中数组是对象的一种，因为 Observer 部分对数组与普通对象�
 
 可以先`git clone git@github.com:vuejs/vue.git`一份源码备看。observer 的部分在源码的 src/core/observer 目录下。
 
+本文代码已经放在 https://github.com/xyzingh/learn-vue-observer ，运行 `npm i && npm run test` 可以测试。
+
 新建文件夹 learn-vue-observer，创建几个文件。
 
 util.ts
