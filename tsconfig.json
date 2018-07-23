@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "module": "commonjs",
+        "newLine": "lf",
+        "noEmitOnError": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "outDir": "./",
+        "strictNullChecks": true,
+        "target": "es2017",
+        "pretty": true,
+        "preserveConstEnums": true,
+        "stripInternal": true
+    },
+    "include": [
+        "./src/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.js"
+    ]
+}

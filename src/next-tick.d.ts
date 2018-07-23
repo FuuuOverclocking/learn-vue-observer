@@ -1,0 +1,1 @@
+export declare function nextTick(cb: () => void, ctx?: any): Promise<any>;

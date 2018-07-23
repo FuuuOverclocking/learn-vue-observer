@@ -1,0 +1,14 @@
+{
+  "name": "learn-vue-observer",
+  "scripts": {
+    "lint": "tslint --fix -c tslint.json 'src/**/*.ts'",
+    "test": "tsc && node test.js"
+  },
+  "author": "X.Y.Z.",
+  "dependencies": {
+    "tslint": "^5.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^2.9.2"
+  }
+}
