@@ -1,7 +1,8 @@
-import { isNative } from "./util";
+"use strict";
+const isNative = require("./util").isNative;
 
 const inBrowser = typeof window !== "undefined";
-const inWeex = typeof WXEnvironment == "undefined" && !!WXEnvironment.platform;
+const inWeex = typeof WXEnvironment !== "undefined" && !!WXEnvironment.platform;
 const weexPlatform = inWeex && WXEnvironment.platform.toLowerCase();
 const UA = inBrowser && window.navigator.userAgent.toLowerCase();
 const isIOS = (UA && /iphone|ipad|ipod|ios/.test(UA)) || (weexPlatform === "ios");
@@ -82,7 +83,7 @@ if (typeof Promise !== "undefined" && isNative(Promise)) {
  * Wrap a function so that if any code inside triggers state change,
  * the changes are queued using a (macro) task instead of a microtask.
  */
-export function withMacroTask(fn) {
+exports.withMacroTask = function(fn) {
   return fn._withTask || (fn._withTask = function() {
     useMacroTask = true;
     const res = fn.apply(null, arguments);
@@ -91,7 +92,7 @@ export function withMacroTask(fn) {
   });
 }
 
-export function nextTick(cb, ctx) {
+exports.nextTick = function(cb, ctx) {
   let _resolve;
   callbacks.push(() => {
     if (cb) {

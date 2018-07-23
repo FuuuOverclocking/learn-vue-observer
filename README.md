@@ -621,6 +621,7 @@ export class Watcher {
     let value: any;
     const obj = this.target;
     try {
+      // 调用了一连串 getter ，对应的键的 dep 中放入了这个 watcher
       value = this.getter(obj);
     } finally {
       // 退出依赖收集阶段
@@ -710,7 +711,7 @@ obj.matrix[0].push(1);
 
 只有 watch 没有 unwatch 自然是不合理的。[前面提到](https://segmentfault.com/a/1190000015709022#articleHeader6)，Watcher 也维护了一个数组 deps，存放所有 放了这个 Watcher 的 Dep ，当这个 Watcher 析构时，可以从这些 Dep 中删去自身。
 
-我们给 Watcher 增加 active, deps, depIds, newDeps, newDepIds 属性，addDep, cleanupDeps, teardown 方法，其中 teardown 是析构的作用，active 标志 Watcher 是否可用，其他的都是围绕着维护 deps 。
+我们给 Watcher 增加 active, deps, depIds, newDeps, newDepIds 属性，addDep, cleanupDeps, teardown 方法，其中 teardown 方法起的是析构的作用，active 标志 Watcher 是否可用，其他的都是围绕着维护 deps 。
 
 ```js
 export class Watcher {
@@ -718,7 +719,7 @@ export class Watcher {
   public active = true;
   public deps: Dep[] = [];
   public depIds = new Set<number>();
-  public newDeps: Dep[];
+  public newDeps: Dep[] = [];
   public newDepIds = new Set<number>();
 
   public run() {
@@ -727,6 +728,7 @@ export class Watcher {
     }
   }
 
+  // newDeps 是新一轮收集的依赖，deps 是之前一轮收集的依赖
   public addDep(dep: Dep) {
     const id = dep.id;
     if (!this.newDepIds.has(id)) {
@@ -738,6 +740,23 @@ export class Watcher {
     }
   }
 
+  public get() {
+    Dep.target = this;
+
+    let value: any;
+    const obj = this.target;
+    try {
+      value = this.getter(obj);
+    } finally {
+      Dep.target = null;
+      this.cleanupDeps();
+    }
+    return value;
+  }
+
+  // 清理依赖
+  // 之前收集的依赖 如果不出现在新一轮收集的依赖中，就清除掉
+  // 再交换 deps/newDeps, depIds/newDepIds
   public cleanupDeps() {
     let i = this.deps.length;
     while (i--) {
@@ -755,19 +774,6 @@ export class Watcher {
     this.deps = this.newDeps;
     this.newDeps = tmp;
     this.newDeps.length = 0;
-  }
-
-  public get() {
-    Dep.target = this;
-
-    let value: any;
-    const obj = this.target;
-    try {
-      value = this.getter(obj);
-    } finally {
-      Dep.target = null;
-    }
-    return value;
   }
 
   public teardown() {
@@ -795,7 +801,7 @@ export default class Dep {
 }
 ```
 
-# 版本 2.0: deep watching
+## 版本 2.0: deep watching
 
 Deep watching 的原理很简单，就是在用 touch 收集依赖的基础上，递归遍历并 touch 所有子元素，如此一来，所有子元素都被收集到依赖中。其中只有防止对象引用成环需要稍微注意一下，这个用一个集合记录遍历到的元素来解决。
 
@@ -825,11 +831,10 @@ export class Watcher {
     try {
       value = this.getter(obj);
     } finally {
-      ////////////
       if (this.deep) {
+        // touch 所有子元素，收集到依赖中
         traverse(value);
       }
-      ////////////
       Dep.target = null;
       this.cleanupDeps();
     }
@@ -840,9 +845,7 @@ export class Watcher {
     const value = this.get();
     if (value !== this.value ||
       isObject(value) ||
-      ////////////
-      this.deep
-      ////////////
+      this.deep /* deep watcher 始终执行 */
     ) {
       const oldVal = this.value;
       this.value = value;
@@ -879,24 +882,24 @@ function _traverse(val: any, seen: Set<any>) {
   }
   if (isA) {
     i = val.length;
-    while (i--) { _traverse(val[i], seen); }
+    while (i--) { _traverse(val[i] /* touch */, seen); }
   } else {
     keys = Object.keys(val);
     i = keys.length;
-    while (i--) { _traverse(val[keys[i]], seen); }
+    while (i--) { _traverse(val[keys[i]] /* touch */, seen); }
   }
 }
 ```
 
 ## 版本 2.1: 异步 Watcher, 异步队列
 
-使用异步 Watcher 可以缓冲在同一事件循环中发生的所有数据改变。如果同一个 Watcher 被多次触发，只会被推入到队列中一次。这样在缓冲时去除重复数据，能够避免不必要的计算，提高性能。
+使用异步 Watcher 可以缓冲在同一次事件循环中发生的所有数据改变。如果在本次执行栈中同一个 Watcher 被多次触发，只会被推入到队列中一次。这样在缓冲时去除重复数据，能够避免不必要的计算，提高性能。
 
 Vue 源码中的异步队列模型比下文中的复杂，因为 Vue 要保证
 
 1. 从父组件到子组件的更新顺序
-2. 用户的 watcher 在 渲染 watcher 之前运行
-3. 在父组件的 watcher 运行时摧毁了子组件，子组件的 watcher 被跳过
+2. 用户定义的 watcher 在 负责渲染的 watcher 之前运行
+3. 若在父组件的 watcher 运行时摧毁了子组件，子组件的 watcher 应被跳过
 4. 被计算属性依赖的另一计算属性先运行
 
 如果这些是你的兴趣，请直接转战源码 src/core/observer/scheduler.js 。
@@ -913,7 +916,7 @@ export class Watcher {
     callback: (newVal: any, oldVal: any) => void,
     {
       deep = false,
-      sync = false,
+      sync = false, // 增加同步选项
     },
   ) {
     this.deep = deep;
@@ -924,7 +927,7 @@ export class Watcher {
     if (this.sync) {
       this.run();
     } else {
-      queueWatcher(this);
+      queueWatcher(this); // 推入队列
     }
   }
 }
@@ -938,7 +941,6 @@ import { Watcher } from "./watcher";
 
 const queue: Watcher[] = [];
 let has: { [key: number]: true | null } = {};
-const circular: { [key: number]: number } = {};
 let waiting = false;
 let flushing = false;
 let index = 0;
@@ -962,8 +964,8 @@ function flushSchedulerQueue() {
 
   queue.sort((a, b) => a.id - b.id);
 
-  // 不缓存队列长度，因为新的 watcher 可能在执行队列时加进来
-  for (index = 0; index < queue.length; index++) {
+  
+  for (index = 0; index < queue.length /* 不缓存队列长度，因为新的 watcher 可能在执行队列时加进来 */; index++) {
     watcher = queue[index];
     id = watcher.id;
     has[id] = null;
@@ -1003,7 +1005,7 @@ export function queueWatcher(watcher: Watcher) {
 }
 ```
 
-如果不清楚 JS 的事件循环机制，可以阅读下 [理解浏览器和node.js中的Event loop事件循环][9] 。
+如果不清楚微任务队列是什么，可以阅读下 [理解浏览器和node.js中的Event loop事件循环][9] 。
 
 下面贴一下 Vue 的 nextTick 实现。
 next-tick.d.ts
@@ -1012,7 +1014,7 @@ next-tick.d.ts
 export declare function nextTick(cb: () => void, ctx?: any): Promise<any>;
 ```
 
-next-tick.ts
+next-tick.js (注意这是 JS)
 ```js
 import { isNative } from "./util";
 
@@ -1023,6 +1025,7 @@ const UA = inBrowser && window.navigator.userAgent.toLowerCase();
 const isIOS = (UA && /iphone|ipad|ipod|ios/.test(UA)) || (weexPlatform === "ios");
 
 function noop() {}
+function handleError() {}
 
 const callbacks = [];
 let pending = false;

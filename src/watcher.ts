@@ -30,7 +30,7 @@ export class Watcher {
   public active = true;
   public deps: Dep[] = [];
   public depIds = new Set<number>();
-  public newDeps: Dep[];
+  public newDeps: Dep[] = [];
   public newDepIds = new Set<number>();
 
   public deep: boolean;

@@ -1,4 +1,8 @@
 const observe = require(".").observe;
+const Watcher = require("./watcher").Watcher;
+
+console.log("Test:");
+
 let obj = {
   a: {
     aa: {
@@ -11,7 +15,13 @@ let obj = {
 };
 
 observe(obj);
-//console.log(obj.a.aa.aaa = 234);
+new Watcher(obj, "a.aa.bbb", val => console.log(val), { sync: true });
+console.log("obj:");
+obj.a.aa.bbb = 999;
+obj.a.aa = {
+  aaa: 123,
+  bbb: 456,
+};
 
 let obj2 = {};
 Object.defineProperty(obj2, "a", {
@@ -32,21 +42,28 @@ Object.defineProperty(obj2, "_a", {
 });
 
 observe(obj2);
-console.log(obj2.a = 456);
+new Watcher(obj2, "a", val => console.log(val), { sync: true });
+console.log("obj2:");
+obj2.a = 456;
 
 let obj3 = {
   arr: [2, 3, 5, 7, 11, 13]
 };
 observe(obj3);
-obj3.arr.push(123);
+new Watcher(obj3, "arr", val => console.log(val), { sync: true });
+console.log("obj3:");
+obj3.arr.push(17);
 
-let a = {
-  get aa() {
-    return 123;
-  },
-  set aa(val) {
+let wat = new Watcher(obj, "a.aa.aaa", val => console.log(val), { sync: true });
+console.log("obj:");
+obj.a.aa.aaa = 999;
+wat.teardown();
+obj.a.aa = {
+  aaa: 123,
+  bbb: 456,
+};
 
-  }
-}
-let b = Object.create(a);
-b.aa = 456;
+new Watcher(obj, "a.aa.aaa", val => console.log(val), { sync: false });
+console.log("obj:");
+obj.a.aa.aaa = 999;
+console.log("sync or async?");
